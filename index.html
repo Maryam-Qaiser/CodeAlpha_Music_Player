@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AuraPlay — Music Player</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Pacifico&display=swap"
+        rel="stylesheet">
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Background -->
+    <div class="background"></div>
+    <div class="background-overlay"></div>
+    <div class="stars"></div>
+
+    <!-- Mobile overlay -->
+    <div class="mobile-overlay" id="mobileOverlay"></div>
+
+    <div class="app">
+
+        <!-- ================= SIDEBAR ================= -->
+
+        <aside class="sidebar" id="sidebar">
+
+            <div class="brand">
+
+                <div class="brand-icon">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+
+                <div>
+                    <h1>Aura<span>Play</span></h1>
+                    <p>Music for a Better You</p>
+                </div>
+
+            </div>
+
+
+            <nav class="navigation">
+
+                <button class="nav-item active">
+                    <i class="fa-solid fa-house"></i>
+                    <span>Home</span>
+                </button>
+
+                <button class="nav-item">
+                    <i class="fa-solid fa-music"></i>
+                    <span>Playlist</span>
+                </button>
+
+                <button class="nav-item">
+                    <i class="fa-solid fa-heart"></i>
+                    <span>Favorites</span>
+                </button>
+
+            </nav>
+
+
+            <div class="sidebar-mood">
+
+                <div class="mood-icon">
+                    <i class="fa-solid fa-headphones"></i>
+                </div>
+
+                <p>
+                    "Good Music.<br>
+                    <span>Better Mood."</span>
+                </p>
+
+                <div class="mini-wave">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+
+            </div>
+
+
+            <div class="sidebar-footer">
+                <i class="fa-solid fa-compact-disc"></i>
+                <span>AuraPlay Music Player</span>
+            </div>
+
+        </aside>
+
+
+        <!-- ================= MAIN ================= -->
+
+        <main class="main">
+
+            <!-- TOPBAR -->
+
+            <header class="topbar">
+
+                <button class="mobile-menu" id="mobileMenu">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+
+                <div class="search-box">
+
+                    <i class="fa-solid fa-magnifying-glass"></i>
+
+                    <input
+                        type="search"
+                        id="searchInput"
+                        placeholder="Search songs, artists, or albums...">
+
+                    <kbd>/</kbd>
+
+                </div>
+
+                <div class="top-right">
+
+                    <span>Let the music play...</span>
+
+                    <div class="music-icon">
+                        <i class="fa-solid fa-music"></i>
+                    </div>
+
+                </div>
+
+            </header>
+
+
+            <!-- ================= CONTENT ================= -->
+
+            <section class="content">
+
+                <!-- PLAYER -->
+
+                <section class="player-section">
+
+                    <div class="hero">
+
+                        <small>GOOD VIBES ONLY</small>
+
+                        <h2>
+                            Feel the <span>Music</span>
+                        </h2>
+
+                        <p>MUSIC MAKES EVERYTHING BETTER</p>
+
+                        <div class="hero-line"></div>
+
+                    </div>
+
+
+                    <!-- ALBUM AREA -->
+
+                    <div class="album-stage">
+
+                        <div class="album-glow"></div>
+
+                        <div class="vinyl" id="record">
+
+                            <div class="vinyl-center">
+                                <i class="fa-solid fa-music"></i>
+                            </div>
+
+                        </div>
+
+                        <div class="album-art" id="albumArt">
+
+                            <img
+                                id="albumImage"
+                                src="images/aarzu.jpg"
+                                alt="Album artwork">
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- SONG INFORMATION -->
+
+                    <div class="song-info">
+
+                        <div class="song-header">
+
+                            <div>
+                                <h1 id="songTitle">Aarzu</h1>
+                                <p id="artistName">Asim Azhar</p>
+                            </div>
+
+                            <button
+                                class="favorite-button"
+                                id="favoriteButton">
+
+                                <i class="fa-regular fa-heart"></i>
+
+                            </button>
+
+                        </div>
+
+
+                        <!-- Progress -->
+
+                        <div class="progress-container">
+
+                            <input
+                                type="range"
+                                id="progressBar"
+                                min="0"
+                                max="100"
+                                value="0">
+
+                            <div class="time">
+
+                                <span id="currentTime">0:00</span>
+
+                                <span id="duration">0:00</span>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- Controls -->
+
+                        <div class="controls">
+
+                            <button
+                                class="control"
+                                id="shuffleButton"
+                                title="Shuffle">
+
+                                <i class="fa-solid fa-shuffle"></i>
+
+                            </button>
+
+
+                            <button
+                                class="control big"
+                                id="previousButton"
+                                title="Previous">
+
+                                <i class="fa-solid fa-backward-step"></i>
+
+                            </button>
+
+
+                            <button
+                                class="play-button"
+                                id="playButton"
+                                title="Play">
+
+                                <i class="fa-solid fa-play"></i>
+
+                            </button>
+
+
+                            <button
+                                class="control big"
+                                id="nextButton"
+                                title="Next">
+
+                                <i class="fa-solid fa-forward-step"></i>
+
+                            </button>
+
+
+                            <button
+                                class="control"
+                                id="repeatButton"
+                                title="Repeat">
+
+                                <i class="fa-solid fa-repeat"></i>
+
+                            </button>
+
+                        </div>
+
+
+                        <!-- Visualizer -->
+
+                        <div
+                            class="visualizer"
+                            id="visualizer">
+
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- ================= PLAYLIST ================= -->
+
+                <aside class="playlist-panel">
+
+                    <div class="playlist-header">
+
+                        <div>
+                            <h2>Playlist</h2>
+                            <p id="songCount">11 songs</p>
+                        </div>
+
+
+                        <label class="autoplay">
+
+                            <span>Autoplay</span>
+
+                            <input
+                                type="checkbox"
+                                id="autoplayToggle"
+                                checked>
+
+                            <i></i>
+
+                        </label>
+
+                    </div>
+
+
+                    <div
+                        class="playlist-list"
+                        id="playlist">
+                    </div>
+
+                </aside>
+
+            </section>
+
+
+            <!-- ================= BOTTOM PLAYER ================= -->
+
+            <section class="bottom-player">
+
+                <div class="volume-area">
+
+                    <button id="volumeButton">
+
+                        <i class="fa-solid fa-volume-high"></i>
+
+                    </button>
+
+                    <input
+                        type="range"
+                        id="volumeBar"
+                        min="0"
+                        max="100"
+                        value="80">
+
+                    <span id="volumeValue">80%</span>
+
+                </div>
+
+
+                <div class="quote">
+
+                    <span>“</span>
+
+                    <p>
+                        Some songs heal what words cannot.
+                    </p>
+
+                    <span>”</span>
+
+                </div>
+
+
+                <div class="now-playing">
+
+                    <div class="now-icon">
+                        <i class="fa-solid fa-wave-square"></i>
+                    </div>
+
+                    <div>
+                        <small>NOW PLAYING</small>
+                        <strong id="bottomSong">Aarzu</strong>
+                    </div>
+
+                </div>
+
+            </section>
+
+        </main>
+
+    </div>
+
+
+    <!-- REAL LOCAL AUDIO -->
+
+    <audio
+        id="audioPlayer"
+        preload="metadata">
+    </audio>
+
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
