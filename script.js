@@ -1,6 +1,6 @@
 /* =========================================================
    AURAPLAY MUSIC PLAYER
-   Local Audio Version
+   COMPLETE JAVASCRIPT
 ========================================================= */
 
 
@@ -91,7 +91,7 @@ const songs = [
 
 
 /* =========================================================
-   ELEMENTS
+   DOM ELEMENTS
 ========================================================= */
 
 const audio = document.getElementById("audioPlayer");
@@ -106,7 +106,13 @@ const albumImage = document.getElementById("albumImage");
 
 const bottomSong = document.getElementById("bottomSong");
 
-const playButton = document.getElementById("playButton");
+const bottomArtist = document.getElementById("bottomArtist");
+
+const bottomAlbumImage =
+    document.getElementById("bottomAlbumImage");
+
+const playButton =
+    document.getElementById("playButton");
 
 const previousButton =
     document.getElementById("previousButton");
@@ -123,8 +129,14 @@ const repeatButton =
 const favoriteButton =
     document.getElementById("favoriteButton");
 
+const bottomFavoriteButton =
+    document.getElementById("bottomFavoriteButton");
+
 const progressBar =
     document.getElementById("progressBar");
+
+const bottomProgressBar =
+    document.getElementById("bottomProgressBar");
 
 const volumeBar =
     document.getElementById("volumeBar");
@@ -140,6 +152,12 @@ const currentTime =
 
 const duration =
     document.getElementById("duration");
+
+const bottomCurrentTime =
+    document.getElementById("bottomCurrentTime");
+
+const bottomDuration =
+    document.getElementById("bottomDuration");
 
 const visualizer =
     document.getElementById("visualizer");
@@ -165,6 +183,18 @@ const sidebar =
 const mobileOverlay =
     document.getElementById("mobileOverlay");
 
+const playlistTitleText =
+    document.getElementById("playlistTitleText");
+
+const playlistIcon =
+    document.getElementById("playlistIcon");
+
+const navIndicator =
+    document.getElementById("navIndicator");
+
+const fullscreenButton =
+    document.getElementById("fullscreenButton");
+
 
 /* =========================================================
    STATE
@@ -178,20 +208,398 @@ let isShuffle = false;
 
 let isRepeat = false;
 
+let lastVolume = 80;
+
+
+/* =========================================================
+   FAVORITES
+========================================================= */
+
 let favorites = [];
 
-let lastVolume = 80;
+try {
+
+    const savedFavorites =
+        JSON.parse(
+            localStorage.getItem(
+                "auraplay-favorites"
+            ) || "[]"
+        );
+
+    if (Array.isArray(savedFavorites)) {
+        favorites = savedFavorites;
+    }
+
+} catch (error) {
+
+    favorites = [];
+
+}
+
+
+/* =========================================================
+   NAVIGATION VIEWS
+========================================================= */
+
+const navViews = [
+
+    {
+        title: "Home",
+        icon: "fa-solid fa-house"
+    },
+
+    {
+        title: "Playlist",
+        icon: "fa-solid fa-music"
+    },
+
+    {
+        title: "Favorites",
+        icon: "fa-solid fa-heart"
+    }
+
+];
+
+
+/* =========================================================
+   REAL AUDIO VISUALIZER
+========================================================= */
+
+let audioContext = null;
+
+let analyser = null;
+
+let audioSourceNode = null;
+
+let frequencyData = null;
+
+let waveFrame = null;
+
+
+/* =========================================================
+   INITIALIZE AUDIO ANALYZER
+========================================================= */
+
+function initAudioAnalyzer() {
+
+    if (audioContext) {
+        return true;
+    }
+
+    const AudioContextClass =
+        window.AudioContext ||
+        window.webkitAudioContext;
+
+    if (!AudioContextClass) {
+
+        console.warn(
+            "Web Audio API is not supported."
+        );
+
+        return false;
+    }
+
+    try {
+
+        audioContext =
+            new AudioContextClass();
+
+        analyser =
+            audioContext.createAnalyser();
+
+        /*
+         * 256 gives enough frequency detail
+         * without making the animation heavy.
+         */
+
+        analyser.fftSize = 256;
+
+        analyser.smoothingTimeConstant = 0.78;
+
+        audioSourceNode =
+            audioContext.createMediaElementSource(
+                audio
+            );
+
+        audioSourceNode.connect(
+            analyser
+        );
+
+        analyser.connect(
+            audioContext.destination
+        );
+
+        frequencyData =
+            new Uint8Array(
+                analyser.frequencyBinCount
+            );
+
+        return true;
+
+    } catch (error) {
+
+        console.warn(
+            "Audio analyzer could not initialize:",
+            error
+        );
+
+        audioContext = null;
+
+        analyser = null;
+
+        return false;
+    }
+
+}
+
+
+/* =========================================================
+   AUDIO WAVE ANIMATION
+========================================================= */
+
+function animateAudioWave() {
+
+    if (
+        !analyser ||
+        !frequencyData ||
+        !record
+    ) {
+
+        return;
+    }
+
+    analyser.getByteFrequencyData(
+        frequencyData
+    );
+
+    const bars =
+        record.querySelectorAll(
+            "span"
+        );
+
+    if (!bars.length) {
+        return;
+    }
+
+    const barCount =
+        bars.length;
+
+    bars.forEach(
+        (bar, index) => {
+
+            /*
+             * Distribute bars through the
+             * useful frequency spectrum.
+             */
+
+            const start =
+                Math.floor(
+                    Math.pow(
+                        index / barCount,
+                        1.65
+                    ) *
+                    (frequencyData.length - 1)
+                );
+
+            const end =
+                Math.max(
+                    start + 1,
+
+                    Math.floor(
+                        Math.pow(
+                            (index + 1) /
+                            barCount,
+                            1.65
+                        ) *
+                        frequencyData.length
+                    )
+                );
+
+            let total = 0;
+
+            for (
+                let i = start;
+                i < end;
+                i++
+            ) {
+
+                total +=
+                    frequencyData[i];
+
+            }
+
+            const average =
+                total /
+                Math.max(
+                    1,
+                    end - start
+                );
+
+            const normalized =
+                average / 255;
+
+            /*
+             * Give the bars a minimum height
+             * so the wave never disappears.
+             */
+
+            const scale =
+                Math.min(
+                    1.25,
+                    0.25 +
+                    normalized * 1.15
+                );
+
+            bar.style.setProperty(
+                "--wave-scale",
+                scale.toFixed(3)
+            );
+
+            /*
+             * Actual audio-reactive opacity.
+             */
+
+            bar.style.opacity =
+                (
+                    0.38 +
+                    normalized * 0.62
+                ).toFixed(2);
+
+        }
+    );
+
+    waveFrame =
+        requestAnimationFrame(
+            animateAudioWave
+        );
+
+}
+
+
+/* =========================================================
+   START AUDIO WAVE
+========================================================= */
+
+function startAudioWave() {
+
+    if (
+        !analyser ||
+        !frequencyData
+    ) {
+
+        return;
+    }
+
+    cancelAnimationFrame(
+        waveFrame
+    );
+
+    animateAudioWave();
+
+}
+
+
+/* =========================================================
+   STOP AUDIO WAVE
+========================================================= */
+
+function stopAudioWave() {
+
+    cancelAnimationFrame(
+        waveFrame
+    );
+
+    waveFrame = null;
+
+    if (!record) {
+        return;
+    }
+
+    const bars =
+        record.querySelectorAll(
+            "span"
+        );
+
+    bars.forEach(
+        bar => {
+
+            bar.style.setProperty(
+                "--wave-scale",
+                ".30"
+            );
+
+            bar.style.opacity =
+                ".30";
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   PROGRESS FILL
+========================================================= */
+
+function setProgressFill(
+    slider,
+    percentage
+) {
+
+    if (!slider) {
+        return;
+    }
+
+    const value =
+        Math.max(
+            0,
+            Math.min(
+                100,
+                Number(percentage) || 0
+            )
+        );
+
+    slider.style.setProperty(
+        "--value",
+        `${value}%`
+    );
+
+}
 
 
 /* =========================================================
    INITIALIZE
 ========================================================= */
 
-audio.volume = 0.8;
+function initializePlayer() {
 
-loadSong(0);
+    if (!audio) {
+        console.error(
+            "Audio player element not found."
+        );
+        return;
+    }
 
-renderPlaylist();
+    audio.volume = 0.8;
+
+    if (volumeBar) {
+
+        volumeBar.value = 80;
+
+        setProgressFill(
+            volumeBar,
+            80
+        );
+
+    }
+
+    updateVolumeIcon();
+
+    loadSong(0);
+
+    renderHome();
+
+}
 
 
 /* =========================================================
@@ -200,81 +608,249 @@ renderPlaylist();
 
 function loadSong(index) {
 
+    stopAudioWave();
+
+    stopAnimation();
+
+    isPlaying = false;
+
     if (index < 0) {
-        index = songs.length - 1;
+
+        index =
+            songs.length - 1;
+
     }
 
-    if (index >= songs.length) {
+    if (
+        index >= songs.length
+    ) {
+
         index = 0;
+
     }
 
     currentIndex = index;
 
-    const song = songs[currentIndex];
+    const song =
+        songs[currentIndex];
 
-    audio.src = encodeURI(song.file);
+    /*
+     * Stop current audio before
+     * changing the source.
+     */
 
-    songTitle.textContent = song.title;
+    audio.pause();
 
-    artistName.textContent = song.artist;
+    audio.src =
+        encodeURI(
+            song.file
+        );
 
-    bottomSong.textContent = song.title;
+    audio.load();
 
-    albumImage.src = song.image;
+    /*
+     * Main player information.
+     */
 
-    albumImage.alt =
-        `${song.title} album artwork`;
+    if (songTitle) {
+
+        songTitle.textContent =
+            song.title;
+
+    }
+
+    if (artistName) {
+
+        artistName.textContent =
+            song.artist;
+
+    }
+
+    if (albumImage) {
+
+        albumImage.src =
+            song.image;
+
+        albumImage.alt =
+            `${song.title} album artwork`;
+
+    }
+
+    /*
+     * Bottom player.
+     */
+
+    if (bottomSong) {
+
+        bottomSong.textContent =
+            song.title;
+
+    }
+
+    if (bottomArtist) {
+
+        bottomArtist.textContent =
+            song.artist;
+
+    }
+
+    if (bottomAlbumImage) {
+
+        bottomAlbumImage.src =
+            song.image;
+
+        bottomAlbumImage.alt =
+            `${song.title} album artwork`;
+
+    }
+
+    /*
+     * Reset progress.
+     */
+
+    if (progressBar) {
+
+        progressBar.value = 0;
+
+        setProgressFill(
+            progressBar,
+            0
+        );
+
+    }
+
+    if (bottomProgressBar) {
+
+        bottomProgressBar.value = 0;
+
+        setProgressFill(
+            bottomProgressBar,
+            0
+        );
+
+    }
+
+    if (currentTime) {
+
+        currentTime.textContent =
+            "0:00";
+
+    }
+
+    if (duration) {
+
+        duration.textContent =
+            "0:00";
+
+    }
+
+    if (bottomCurrentTime) {
+
+        bottomCurrentTime.textContent =
+            "0:00";
+
+    }
+
+    if (bottomDuration) {
+
+        bottomDuration.textContent =
+            "0:00";
+
+    }
 
     updateFavoriteButton();
 
     updatePlaylist();
 
-    currentTime.textContent = "0:00";
-
-    duration.textContent = "0:00";
-
-    progressBar.value = 0;
+    updatePlayButton();
 
 }
 
 
 /* =========================================================
-   PLAY
+   PLAY SONG
 ========================================================= */
 
-function playSong() {
+async function playSong() {
 
-    audio.play()
-        .then(() => {
+    if (!audio) {
+        return;
+    }
 
-            isPlaying = true;
+    /*
+     * Create analyzer after the user
+     * interacts with the page.
+     */
 
-            updatePlayButton();
+    const analyzerReady =
+        initAudioAnalyzer();
 
-            startAnimation();
+    if (
+        analyzerReady &&
+        audioContext &&
+        audioContext.state === "suspended"
+    ) {
 
-        })
-        .catch(error => {
+        try {
 
-            console.error(
-                "Audio play error:",
+            await audioContext.resume();
+
+        } catch (error) {
+
+            console.warn(
+                "AudioContext resume failed:",
                 error
             );
 
-            showMessage(
-                "Song load nahi ho raha. File name check karein."
-            );
+        }
 
-        });
+    }
+
+    try {
+
+        await audio.play();
+
+        isPlaying = true;
+
+        updatePlayButton();
+
+        startAnimation();
+
+        if (analyzerReady) {
+
+            startAudioWave();
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Audio play error:",
+            error
+        );
+
+        isPlaying = false;
+
+        updatePlayButton();
+
+        showMessage(
+            "Please check the music path."
+        );
+
+    }
 
 }
 
 
 /* =========================================================
-   PAUSE
+   PAUSE SONG
 ========================================================= */
 
 function pauseSong() {
+
+    if (!audio) {
+        return;
+    }
 
     audio.pause();
 
@@ -283,6 +859,8 @@ function pauseSong() {
     updatePlayButton();
 
     stopAnimation();
+
+    stopAudioWave();
 
 }
 
@@ -307,40 +885,44 @@ function togglePlay() {
 
 
 /* =========================================================
-   NEXT
+   NEXT SONG
 ========================================================= */
 
 function nextSong() {
 
-    if (isShuffle) {
+    let nextIndex;
 
-        let randomIndex;
+    if (isShuffle) {
 
         do {
 
-            randomIndex =
+            nextIndex =
                 Math.floor(
-                    Math.random() * songs.length
+                    Math.random() *
+                    songs.length
                 );
 
         } while (
-            randomIndex === currentIndex &&
+            nextIndex === currentIndex &&
             songs.length > 1
         );
 
-        currentIndex = randomIndex;
-
     } else {
 
-        currentIndex++;
+        nextIndex =
+            currentIndex + 1;
 
-        if (currentIndex >= songs.length) {
-            currentIndex = 0;
+        if (
+            nextIndex >= songs.length
+        ) {
+
+            nextIndex = 0;
+
         }
 
     }
 
-    loadSong(currentIndex);
+    loadSong(nextIndex);
 
     playSong();
 
@@ -348,12 +930,19 @@ function nextSong() {
 
 
 /* =========================================================
-   PREVIOUS
+   PREVIOUS SONG
 ========================================================= */
 
 function previousSong() {
 
-    if (audio.currentTime > 3) {
+    /*
+     * If current song has already played
+     * more than 3 seconds, restart it.
+     */
+
+    if (
+        audio.currentTime > 3
+    ) {
 
         audio.currentTime = 0;
 
@@ -361,13 +950,21 @@ function previousSong() {
 
     }
 
-    currentIndex--;
+    let previousIndex =
+        currentIndex - 1;
 
-    if (currentIndex < 0) {
-        currentIndex = songs.length - 1;
+    if (
+        previousIndex < 0
+    ) {
+
+        previousIndex =
+            songs.length - 1;
+
     }
 
-    loadSong(currentIndex);
+    loadSong(
+        previousIndex
+    );
 
     playSong();
 
@@ -375,27 +972,39 @@ function previousSong() {
 
 
 /* =========================================================
-   UPDATE PLAY BUTTON
+   PLAY BUTTON UI
 ========================================================= */
 
 function updatePlayButton() {
 
+    if (!playButton) {
+        return;
+    }
+
     const icon =
-        playButton.querySelector("i");
+        playButton.querySelector(
+            "i"
+        );
+
+    if (!icon) {
+        return;
+    }
 
     if (isPlaying) {
 
         icon.className =
             "fa-solid fa-pause";
 
-        playButton.title = "Pause";
+        playButton.title =
+            "Pause";
 
     } else {
 
         icon.className =
             "fa-solid fa-play";
 
-        playButton.title = "Play";
+        playButton.title =
+            "Play";
 
     }
 
@@ -410,43 +1019,129 @@ audio.addEventListener(
     "timeupdate",
     () => {
 
-        if (!audio.duration) {
+        if (
+            !audio.duration ||
+            isNaN(audio.duration)
+        ) {
+
             return;
+
         }
 
         const percentage =
-            (audio.currentTime /
-                audio.duration) * 100;
+            (
+                audio.currentTime /
+                audio.duration
+            ) * 100;
 
-        progressBar.value =
-            percentage;
+        /*
+         * Main progress.
+         */
 
-        currentTime.textContent =
+        if (progressBar) {
+
+            progressBar.value =
+                percentage;
+
+            setProgressFill(
+                progressBar,
+                percentage
+            );
+
+        }
+
+        /*
+         * Bottom progress.
+         */
+
+        if (bottomProgressBar) {
+
+            bottomProgressBar.value =
+                percentage;
+
+            setProgressFill(
+                bottomProgressBar,
+                percentage
+            );
+
+        }
+
+        /*
+         * Time labels.
+         */
+
+        const current =
             formatTime(
                 audio.currentTime
             );
 
-        duration.textContent =
+        const total =
             formatTime(
                 audio.duration
             );
+
+        if (currentTime) {
+
+            currentTime.textContent =
+                current;
+
+        }
+
+        if (duration) {
+
+            duration.textContent =
+                total;
+
+        }
+
+        if (bottomCurrentTime) {
+
+            bottomCurrentTime.textContent =
+                current;
+
+        }
+
+        if (bottomDuration) {
+
+            bottomDuration.textContent =
+                total;
+
+        }
 
     }
 );
 
 
 /* =========================================================
-   METADATA
+   LOADED METADATA
 ========================================================= */
 
 audio.addEventListener(
     "loadedmetadata",
     () => {
 
-        duration.textContent =
+        if (!audio.duration) {
+            return;
+        }
+
+        const total =
             formatTime(
                 audio.duration
             );
+
+        if (duration) {
+
+            duration.textContent =
+                total;
+
+        }
+
+        if (bottomDuration) {
+
+            bottomDuration.textContent =
+                total;
+
+        }
 
     }
 );
@@ -460,6 +1155,12 @@ audio.addEventListener(
     "ended",
     () => {
 
+        isPlaying = false;
+
+        stopAudioWave();
+
+        stopAnimation();
+
         if (isRepeat) {
 
             audio.currentTime = 0;
@@ -470,108 +1171,277 @@ audio.addEventListener(
 
         }
 
-        if (autoplayToggle.checked) {
+        if (
+            autoplayToggle &&
+            autoplayToggle.checked
+        ) {
 
             nextSong();
 
-        } else {
-
-            isPlaying = false;
-
-            updatePlayButton();
-
-            stopAnimation();
+            return;
 
         }
+
+        updatePlayButton();
 
     }
 );
 
 
 /* =========================================================
-   PROGRESS SEEK
+   MAIN PROGRESS SEEK
 ========================================================= */
 
-progressBar.addEventListener(
-    "input",
-    () => {
+if (progressBar) {
 
-        if (!audio.duration) {
-            return;
+    progressBar.addEventListener(
+        "input",
+        () => {
+
+            if (
+                !audio.duration
+            ) {
+
+                return;
+
+            }
+
+            const newTime =
+                (
+                    Number(
+                        progressBar.value
+                    ) / 100
+                ) *
+                audio.duration;
+
+            audio.currentTime =
+                newTime;
+
+            setProgressFill(
+                progressBar,
+                progressBar.value
+            );
+
+            if (bottomProgressBar) {
+
+                bottomProgressBar.value =
+                    progressBar.value;
+
+                setProgressFill(
+                    bottomProgressBar,
+                    progressBar.value
+                );
+
+            }
+
+            const formatted =
+                formatTime(
+                    newTime
+                );
+
+            if (currentTime) {
+
+                currentTime.textContent =
+                    formatted;
+
+            }
+
+            if (bottomCurrentTime) {
+
+                bottomCurrentTime.textContent =
+                    formatted;
+
+            }
+
         }
+    );
 
-        const newTime =
-            (progressBar.value / 100) *
-            audio.duration;
+}
 
-        audio.currentTime =
-            newTime;
 
-    }
-);
+/* =========================================================
+   BOTTOM PROGRESS SEEK
+========================================================= */
+
+if (bottomProgressBar) {
+
+    bottomProgressBar.addEventListener(
+        "input",
+        () => {
+
+            if (
+                !audio.duration
+            ) {
+
+                return;
+
+            }
+
+            const newTime =
+                (
+                    Number(
+                        bottomProgressBar.value
+                    ) / 100
+                ) *
+                audio.duration;
+
+            audio.currentTime =
+                newTime;
+
+            setProgressFill(
+                bottomProgressBar,
+                bottomProgressBar.value
+            );
+
+            if (progressBar) {
+
+                progressBar.value =
+                    bottomProgressBar.value;
+
+                setProgressFill(
+                    progressBar,
+                    progressBar.value
+                );
+
+            }
+
+            const formatted =
+                formatTime(
+                    newTime
+                );
+
+            if (currentTime) {
+
+                currentTime.textContent =
+                    formatted;
+
+            }
+
+            if (bottomCurrentTime) {
+
+                bottomCurrentTime.textContent =
+                    formatted;
+
+            }
+
+        }
+    );
+
+}
 
 
 /* =========================================================
    VOLUME
 ========================================================= */
 
-volumeBar.addEventListener(
-    "input",
-    () => {
+if (volumeBar) {
 
-        const value =
-            Number(volumeBar.value);
+    volumeBar.addEventListener(
+        "input",
+        () => {
 
-        audio.volume =
-            value / 100;
+            const value =
+                Number(
+                    volumeBar.value
+                );
 
-        lastVolume = value;
+            audio.volume =
+                value / 100;
 
-        volumeValue.textContent =
-            `${value}%`;
+            lastVolume =
+                value;
 
-        updateVolumeIcon();
+            if (volumeValue) {
 
-    }
-);
+                volumeValue.textContent =
+                    `${value}%`;
+
+            }
+
+            setProgressFill(
+                volumeBar,
+                value
+            );
+
+            updateVolumeIcon();
+
+        }
+    );
+
+}
 
 
 /* =========================================================
-   VOLUME BUTTON
+   VOLUME MUTE
 ========================================================= */
 
-volumeButton.addEventListener(
-    "click",
-    () => {
+if (volumeButton) {
 
-        if (audio.volume > 0) {
+    volumeButton.addEventListener(
+        "click",
+        () => {
 
-            lastVolume =
-                Number(volumeBar.value);
+            if (
+                audio.volume > 0
+            ) {
 
-            audio.volume = 0;
+                lastVolume =
+                    Number(
+                        volumeBar.value
+                    ) || 80;
 
-            volumeBar.value = 0;
+                audio.volume = 0;
 
-            volumeValue.textContent = "0%";
+                if (volumeBar) {
 
-        } else {
+                    volumeBar.value = 0;
 
-            audio.volume =
-                lastVolume / 100;
+                    setProgressFill(
+                        volumeBar,
+                        0
+                    );
 
-            volumeBar.value =
-                lastVolume;
+                }
 
-            volumeValue.textContent =
-                `${lastVolume}%`;
+                if (volumeValue) {
+
+                    volumeValue.textContent =
+                        "0%";
+
+                }
+
+            } else {
+
+                audio.volume =
+                    lastVolume / 100;
+
+                if (volumeBar) {
+
+                    volumeBar.value =
+                        lastVolume;
+
+                    setProgressFill(
+                        volumeBar,
+                        lastVolume
+                    );
+
+                }
+
+                if (volumeValue) {
+
+                    volumeValue.textContent =
+                        `${lastVolume}%`;
+
+                }
+
+            }
+
+            updateVolumeIcon();
 
         }
+    );
 
-        updateVolumeIcon();
-
-    }
-);
+}
 
 
 /* =========================================================
@@ -580,15 +1450,29 @@ volumeButton.addEventListener(
 
 function updateVolumeIcon() {
 
-    const icon =
-        volumeButton.querySelector("i");
+    if (!volumeButton) {
+        return;
+    }
 
-    if (audio.volume === 0) {
+    const icon =
+        volumeButton.querySelector(
+            "i"
+        );
+
+    if (!icon) {
+        return;
+    }
+
+    if (
+        audio.volume === 0
+    ) {
 
         icon.className =
             "fa-solid fa-volume-xmark";
 
-    } else if (audio.volume < 0.5) {
+    } else if (
+        audio.volume < 0.5
+    ) {
 
         icon.className =
             "fa-solid fa-volume-low";
@@ -607,116 +1491,145 @@ function updateVolumeIcon() {
    SHUFFLE
 ========================================================= */
 
-shuffleButton.addEventListener(
-    "click",
-    () => {
+if (shuffleButton) {
 
-        isShuffle =
-            !isShuffle;
+    shuffleButton.addEventListener(
+        "click",
+        () => {
 
-        shuffleButton.classList.toggle(
-            "active",
-            isShuffle
-        );
+            isShuffle =
+                !isShuffle;
 
-        showMessage(
-            isShuffle
-                ? "Shuffle On"
-                : "Shuffle Off"
-        );
+            shuffleButton.classList.toggle(
+                "active",
+                isShuffle
+            );
 
-    }
-);
+            showMessage(
+                isShuffle
+                    ? "Shuffle On"
+                    : "Shuffle Off"
+            );
+
+        }
+    );
+
+}
 
 
 /* =========================================================
    REPEAT
 ========================================================= */
 
-repeatButton.addEventListener(
-    "click",
-    () => {
+if (repeatButton) {
 
-        isRepeat =
-            !isRepeat;
+    repeatButton.addEventListener(
+        "click",
+        () => {
 
-        repeatButton.classList.toggle(
-            "active",
-            isRepeat
-        );
+            isRepeat =
+                !isRepeat;
 
-        showMessage(
-            isRepeat
-                ? "Repeat On"
-                : "Repeat Off"
-        );
+            repeatButton.classList.toggle(
+                "active",
+                isRepeat
+            );
 
-    }
-);
+            showMessage(
+                isRepeat
+                    ? "Repeat On"
+                    : "Repeat Off"
+            );
+
+        }
+    );
+
+}
 
 
 /* =========================================================
-   FAVORITE
+   FAVORITE TOGGLE
 ========================================================= */
-favoriteButton.addEventListener(
-    "click",
-    () => {
 
-        const index =
-            favorites.indexOf(
-                currentIndex
-            );
+function toggleFavorite() {
 
+    const existingIndex =
+        favorites.indexOf(
+            currentIndex
+        );
 
-        if (index === -1) {
+    if (
+        existingIndex === -1
+    ) {
 
-            favorites.push(
-                currentIndex
-            );
+        favorites.push(
+            currentIndex
+        );
 
-            showMessage(
-                "Added to Favorites ♥"
-            );
+        showMessage(
+            "Added to Favorites ♥"
+        );
 
-        } else {
+    } else {
 
-            favorites.splice(
-                index,
-                1
-            );
+        favorites.splice(
+            existingIndex,
+            1
+        );
 
-            showMessage(
-                "Removed from Favorites"
-            );
-
-        }
-
-
-        updateFavoriteButton();
-
-
-        /*
-         * If Favorites page is currently active,
-         * refresh its list immediately.
-         */
-
-        const favoritesNav =
-            navItems[2];
-
-
-        if (
-            favoritesNav &&
-            favoritesNav.classList.contains(
-                "active"
-            )
-        ) {
-
-            showFavorites();
-
-        }
+        showMessage(
+            "Removed from Favorites"
+        );
 
     }
-);
+
+    saveFavorites();
+
+    updateFavoriteButton();
+
+    /*
+     * Refresh Favorites view immediately.
+     */
+
+    const activeNavIndex =
+        getActiveNavIndex();
+
+    if (
+        activeNavIndex === 2
+    ) {
+
+        showFavorites();
+
+    }
+
+}
+
+
+/* =========================================================
+   SAVE FAVORITES
+========================================================= */
+
+function saveFavorites() {
+
+    try {
+
+        localStorage.setItem(
+            "auraplay-favorites",
+            JSON.stringify(
+                favorites
+            )
+        );
+
+    } catch (error) {
+
+        console.warn(
+            "Could not save favorites:",
+            error
+        );
+
+    }
+
+}
 
 
 /* =========================================================
@@ -725,28 +1638,62 @@ favoriteButton.addEventListener(
 
 function updateFavoriteButton() {
 
-    const icon =
-        favoriteButton.querySelector("i");
-
     const isFavorite =
         favorites.includes(
             currentIndex
         );
 
-    favoriteButton.classList.toggle(
-        "active",
-        isFavorite
-    );
+    /*
+     * Main favorite button.
+     */
 
-    if (isFavorite) {
+    if (favoriteButton) {
 
-        icon.className =
-            "fa-solid fa-heart";
+        const icon =
+            favoriteButton.querySelector(
+                "i"
+            );
 
-    } else {
+        favoriteButton.classList.toggle(
+            "active",
+            isFavorite
+        );
 
-        icon.className =
-            "fa-regular fa-heart";
+        if (icon) {
+
+            icon.className =
+                isFavorite
+                    ? "fa-solid fa-heart"
+                    : "fa-regular fa-heart";
+
+        }
+
+    }
+
+    /*
+     * Bottom favorite button.
+     */
+
+    if (bottomFavoriteButton) {
+
+        const icon =
+            bottomFavoriteButton.querySelector(
+                "i"
+            );
+
+        bottomFavoriteButton.classList.toggle(
+            "active",
+            isFavorite
+        );
+
+        if (icon) {
+
+            icon.className =
+                isFavorite
+                    ? "fa-solid fa-heart"
+                    : "fa-regular fa-heart";
+
+        }
 
     }
 
@@ -754,29 +1701,217 @@ function updateFavoriteButton() {
 
 
 /* =========================================================
-   RENDER PLAYLIST
+   FAVORITE BUTTON EVENTS
+========================================================= */
+
+if (favoriteButton) {
+
+    favoriteButton.addEventListener(
+        "click",
+        toggleFavorite
+    );
+
+}
+
+if (bottomFavoriteButton) {
+
+    bottomFavoriteButton.addEventListener(
+        "click",
+        toggleFavorite
+    );
+
+}
+
+
+/* =========================================================
+   HOME VIEW
+========================================================= */
+
+function renderHome(
+    filteredSongs = songs
+) {
+
+    if (!playlist) {
+        return;
+    }
+
+    playlist.classList.add(
+        "grid-mode"
+    );
+
+    playlist.innerHTML = "";
+
+    if (songCount) {
+
+        songCount.textContent =
+            `${filteredSongs.length} tracks curated for you`;
+
+    }
+
+    filteredSongs.forEach(
+        (song, position) => {
+
+            const originalIndex =
+                songs.indexOf(
+                    song
+                );
+
+            const card =
+                document.createElement(
+                    "div"
+                );
+
+            card.className =
+                "home-card";
+
+            card.dataset.songIndex =
+                originalIndex;
+
+            card.style.animationDelay =
+                `${position * 45}ms`;
+
+            if (
+                originalIndex ===
+                currentIndex
+            ) {
+
+                card.classList.add(
+                    "active"
+                );
+
+            }
+
+            card.innerHTML = `
+
+                <div class="home-card-art">
+
+                    <img
+                        src="${song.image}"
+                        alt="${escapeHTML(song.title)}"
+                    >
+
+                    <button
+                        type="button"
+                        class="home-card-play"
+                        title="Play ${escapeHTML(song.title)}"
+                    >
+
+                        <i class="fa-solid fa-play"></i>
+
+                    </button>
+
+                    ${
+                        position === 0
+                            ? `
+                                <span class="home-card-badge">
+                                    Featured
+                                </span>
+                              `
+                            : ""
+                    }
+
+                </div>
+
+                <h3>
+                    ${escapeHTML(song.title)}
+                </h3>
+
+                <p>
+                    ${escapeHTML(song.artist)}
+                </p>
+
+            `;
+
+            card.addEventListener(
+                "click",
+                () => {
+
+                    loadSong(
+                        originalIndex
+                    );
+
+                    playSong();
+
+                }
+            );
+
+            const play =
+                card.querySelector(
+                    ".home-card-play"
+                );
+
+            if (play) {
+
+                play.addEventListener(
+                    "click",
+                    event => {
+
+                        event.stopPropagation();
+
+                        loadSong(
+                            originalIndex
+                        );
+
+                        playSong();
+
+                    }
+                );
+
+            }
+
+            playlist.appendChild(
+                card
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   PLAYLIST VIEW
 ========================================================= */
 
 function renderPlaylist(
     filteredSongs = songs
 ) {
 
+    if (!playlist) {
+        return;
+    }
+
+    playlist.classList.remove(
+        "grid-mode"
+    );
+
     playlist.innerHTML = "";
 
-    songCount.textContent =
-        `${filteredSongs.length} songs`;
+    if (songCount) {
+
+        songCount.textContent =
+            `${filteredSongs.length} songs`;
+
+    }
 
     filteredSongs.forEach(
-        (song) => {
+        (song, position) => {
 
             const originalIndex =
-                songs.indexOf(song);
+                songs.indexOf(
+                    song
+                );
 
             const item =
-                document.createElement("div");
+                document.createElement(
+                    "div"
+                );
 
             item.className =
                 "playlist-item";
+
+            item.dataset.songIndex =
+                originalIndex;
 
             if (
                 originalIndex ===
@@ -789,35 +1924,37 @@ function renderPlaylist(
 
             }
 
-
             item.innerHTML = `
+
+                <div class="track-number">
+                    ${position + 1}
+                </div>
 
                 <div class="track-art">
 
                     <img
                         src="${song.image}"
-                        alt="${song.title}">
+                        alt="${escapeHTML(song.title)}"
+                    >
 
                 </div>
-
 
                 <div class="track-copy">
 
                     <h3>
-                        ${song.title}
+                        ${escapeHTML(song.title)}
                     </h3>
 
                     <p>
-                        ${song.artist}
+                        ${escapeHTML(song.artist)}
                     </p>
 
                 </div>
 
-
                 <div class="track-meta">
 
                     <span class="track-duration">
-                        ${getKnownDuration(originalIndex)}
+                        —
                     </span>
 
                     <div class="playing-bars">
@@ -832,7 +1969,6 @@ function renderPlaylist(
 
             `;
 
-
             item.addEventListener(
                 "click",
                 () => {
@@ -846,7 +1982,6 @@ function renderPlaylist(
                 }
             );
 
-
             playlist.appendChild(
                 item
             );
@@ -858,22 +1993,31 @@ function renderPlaylist(
 
 
 /* =========================================================
-   UPDATE PLAYLIST
+   UPDATE PLAYLIST ACTIVE STATE
 ========================================================= */
 
 function updatePlaylist() {
 
+    if (!playlist) {
+        return;
+    }
+
     const items =
         playlist.querySelectorAll(
-            ".playlist-item"
+            ".playlist-item, .home-card"
         );
 
     items.forEach(
-        (item, index) => {
+        item => {
+
+            const itemIndex =
+                Number(
+                    item.dataset.songIndex
+                );
 
             item.classList.toggle(
                 "active",
-                index === currentIndex
+                itemIndex === currentIndex
             );
 
         }
@@ -883,28 +2027,77 @@ function updatePlaylist() {
 
 
 /* =========================================================
-   KNOWN DURATIONS
+   FAVORITES VIEW
 ========================================================= */
 
-function getKnownDuration(index) {
+function showFavorites() {
 
-    const durations = [
+    const favoriteSongs =
+        favorites
+            .map(
+                index =>
+                    songs[index]
+            )
+            .filter(
+                Boolean
+            );
 
-        "--",
-        "--",
-        "--",
-        "--",
-        "--",
-        "--",
-        "--",
-        "--",
-        "--",
-        "--",
-        "--"
+    if (
+        favoriteSongs.length === 0
+    ) {
 
-    ];
+        playlist.classList.remove(
+            "grid-mode"
+        );
 
-    return durations[index] || "--";
+        playlist.innerHTML = `
+
+            <div class="empty-favorites">
+
+                <div class="empty-icon">
+
+                    <i class="fa-regular fa-heart"></i>
+
+                </div>
+
+                <h3>
+                    No Favorite Songs
+                </h3>
+
+                <p>
+                    Tap the heart icon to add
+                    songs to your favorites.
+                </p>
+
+            </div>
+
+        `;
+
+        if (songCount) {
+
+            songCount.textContent =
+                "0 songs";
+
+        }
+
+        return;
+
+    }
+
+    renderPlaylist(
+        favoriteSongs
+    );
+
+    if (songCount) {
+
+        songCount.textContent =
+            `${favoriteSongs.length} favorite ${
+                favoriteSongs.length === 1
+                    ? "song"
+                    : "songs"
+            }`;
+
+    }
 
 }
 
@@ -913,45 +2106,473 @@ function getKnownDuration(index) {
    SEARCH
 ========================================================= */
 
-searchInput.addEventListener(
-    "input",
-    () => {
+if (searchInput) {
 
-        const query =
-            searchInput.value
-                .toLowerCase()
-                .trim();
+    searchInput.addEventListener(
+        "input",
+        () => {
 
-        if (!query) {
+            const query =
+                searchInput.value
+                    .toLowerCase()
+                    .trim();
+
+            const activeIndex =
+                getActiveNavIndex();
+
+            if (playlistTitleText) {
+
+                playlistTitleText.textContent =
+                    query
+                        ? "Search"
+                        : navViews[
+                            activeIndex
+                        ]?.title || "Home";
+
+            }
+
+            if (!query) {
+
+                if (
+                    activeIndex === 0
+                ) {
+
+                    renderHome(
+                        songs
+                    );
+
+                } else if (
+                    activeIndex === 1
+                ) {
+
+                    renderPlaylist(
+                        songs
+                    );
+
+                } else {
+
+                    showFavorites();
+
+                }
+
+                return;
+
+            }
+
+            const filtered =
+                songs.filter(
+                    song =>
+
+                        song.title
+                            .toLowerCase()
+                            .includes(
+                                query
+                            )
+
+                        ||
+
+                        song.artist
+                            .toLowerCase()
+                            .includes(
+                                query
+                            )
+                );
 
             renderPlaylist(
-                songs
+                filtered
             );
-
-            return;
 
         }
+    );
+
+}
 
 
-        const filtered =
-            songs.filter(
-                song =>
-                    song.title
-                        .toLowerCase()
-                        .includes(query)
-                    ||
-                    song.artist
-                        .toLowerCase()
-                        .includes(query)
+/* =========================================================
+   GET ACTIVE NAV INDEX
+========================================================= */
+
+function getActiveNavIndex() {
+
+    const navItems =
+        document.querySelectorAll(
+            ".nav-item"
+        );
+
+    return [
+        ...navItems
+    ].findIndex(
+        item =>
+            item.classList.contains(
+                "active"
+            )
+    );
+
+}
+
+
+/* =========================================================
+   VISUAL PLAYING ANIMATION
+========================================================= */
+
+function startAnimation() {
+
+    if (visualizer) {
+
+        visualizer.classList.add(
+            "playing"
+        );
+
+    }
+
+    if (record) {
+
+        record.classList.add(
+            "playing"
+        );
+
+    }
+
+    if (playButton) {
+
+        playButton.classList.add(
+            "playing"
+        );
+
+    }
+
+    const albumStage =
+        document.querySelector(
+            ".album-stage"
+        );
+
+    if (albumStage) {
+
+        albumStage.classList.add(
+            "playing"
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   STOP VISUAL ANIMATION
+========================================================= */
+
+function stopAnimation() {
+
+    if (visualizer) {
+
+        visualizer.classList.remove(
+            "playing"
+        );
+
+    }
+
+    if (record) {
+
+        record.classList.remove(
+            "playing"
+        );
+
+    }
+
+    if (playButton) {
+
+        playButton.classList.remove(
+            "playing"
+        );
+
+    }
+
+    const albumStage =
+        document.querySelector(
+            ".album-stage"
+        );
+
+    if (albumStage) {
+
+        albumStage.classList.remove(
+            "playing"
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   FORMAT TIME
+========================================================= */
+
+function formatTime(
+    seconds
+) {
+
+    if (
+        !seconds ||
+        isNaN(seconds) ||
+        seconds < 0
+    ) {
+
+        return "0:00";
+
+    }
+
+    const minutes =
+        Math.floor(
+            seconds / 60
+        );
+
+    const remainingSeconds =
+        Math.floor(
+            seconds % 60
+        );
+
+    return (
+        `${minutes}:` +
+        `${remainingSeconds
+            .toString()
+            .padStart(2, "0")}`
+    );
+
+}
+
+
+/* =========================================================
+   MOBILE SIDEBAR
+========================================================= */
+
+if (mobileMenu) {
+
+    mobileMenu.addEventListener(
+        "click",
+        () => {
+
+            sidebar?.classList.add(
+                "open"
             );
 
+            mobileOverlay?.classList.add(
+                "show"
+            );
 
-        renderPlaylist(
-            filtered
+        }
+    );
+
+}
+
+if (mobileOverlay) {
+
+    mobileOverlay.addEventListener(
+        "click",
+        closeMobileMenu
+    );
+
+}
+
+
+function closeMobileMenu() {
+
+    sidebar?.classList.remove(
+        "open"
+    );
+
+    mobileOverlay?.classList.remove(
+        "show"
+    );
+
+}
+
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+
+const navItems =
+    document.querySelectorAll(
+        ".nav-item"
+    );
+
+
+navItems.forEach(
+    (button, index) => {
+
+        button.addEventListener(
+            "click",
+            () => {
+
+                /*
+                 * Remove active from all.
+                 */
+
+                navItems.forEach(
+                    item => {
+
+                        item.classList.remove(
+                            "active"
+                        );
+
+                    }
+                );
+
+                /*
+                 * Activate selected item.
+                 */
+
+                button.classList.add(
+                    "active"
+                );
+
+                /*
+                 * Move animated indicator.
+                 */
+
+                moveNavIndicator(
+                    button
+                );
+
+                /*
+                 * Update heading.
+                 */
+
+                updateViewHeader(
+                    index
+                );
+
+                /*
+                 * HOME
+                 */
+
+                if (
+                    index === 0
+                ) {
+
+                    renderHome(
+                        songs
+                    );
+
+                }
+
+                /*
+                 * PLAYLIST
+                 */
+
+                else if (
+                    index === 1
+                ) {
+
+                    renderPlaylist(
+                        songs
+                    );
+
+                }
+
+                /*
+                 * FAVORITES
+                 */
+
+                else if (
+                    index === 2
+                ) {
+
+                    showFavorites();
+
+                }
+
+                /*
+                 * Close mobile menu.
+                 */
+
+                if (
+                    window.innerWidth <= 900
+                ) {
+
+                    closeMobileMenu();
+
+                }
+
+            }
         );
 
     }
 );
+
+
+/* =========================================================
+   NAV INDICATOR
+========================================================= */
+
+function moveNavIndicator(
+    button
+) {
+
+    if (!navIndicator || !button) {
+        return;
+    }
+
+    navIndicator.style.transform =
+        `translateY(${button.offsetTop}px)`;
+
+    navIndicator.style.height =
+        `${button.offsetHeight}px`;
+
+}
+
+
+window.addEventListener(
+    "resize",
+    () => {
+
+        const activeNav =
+            document.querySelector(
+                ".nav-item.active"
+            );
+
+        if (activeNav) {
+
+            moveNavIndicator(
+                activeNav
+            );
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   UPDATE VIEW HEADER
+========================================================= */
+
+function updateViewHeader(
+    index
+) {
+
+    const view =
+        navViews[index];
+
+    if (!view) {
+        return;
+    }
+
+    if (playlistTitleText) {
+
+        playlistTitleText.textContent =
+            view.title;
+
+    }
+
+    if (playlistIcon) {
+
+        playlistIcon.className =
+            view.icon;
+
+    }
+
+}
 
 
 /* =========================================================
@@ -962,17 +2583,25 @@ document.addEventListener(
     "keydown",
     event => {
 
+        const tag =
+            event.target?.tagName;
+
         if (
-            event.target.tagName ===
-            "INPUT"
+            tag === "INPUT" ||
+            tag === "TEXTAREA"
         ) {
 
             return;
 
         }
 
+        /*
+         * Space = Play/Pause
+         */
 
-        if (event.code === "Space") {
+        if (
+            event.code === "Space"
+        ) {
 
             event.preventDefault();
 
@@ -980,20 +2609,24 @@ document.addEventListener(
 
         }
 
+        /*
+         * Right Arrow = Next
+         */
 
         if (
-            event.code ===
-            "ArrowRight"
+            event.code === "ArrowRight"
         ) {
 
             nextSong();
 
         }
 
+        /*
+         * Left Arrow = Previous
+         */
 
         if (
-            event.code ===
-            "ArrowLeft"
+            event.code === "ArrowLeft"
         ) {
 
             previousSong();
@@ -1020,7 +2653,7 @@ document.addEventListener(
 
             event.preventDefault();
 
-            searchInput.focus();
+            searchInput?.focus();
 
         }
 
@@ -1029,249 +2662,67 @@ document.addEventListener(
 
 
 /* =========================================================
-   VISUAL ANIMATION
+   FULLSCREEN
 ========================================================= */
 
-function startAnimation() {
+if (fullscreenButton) {
 
-    visualizer.classList.add(
-        "playing"
-    );
-
-    record.classList.add(
-        "playing"
-    );
-
-}
-
-
-function stopAnimation() {
-
-    visualizer.classList.remove(
-        "playing"
-    );
-
-    record.classList.remove(
-        "playing"
-    );
-
-}
-
-
-/* =========================================================
-   FORMAT TIME
-========================================================= */
-
-function formatTime(seconds) {
-
-    if (
-        !seconds ||
-        isNaN(seconds)
-    ) {
-
-        return "0:00";
-
-    }
-
-
-    const minutes =
-        Math.floor(
-            seconds / 60
-        );
-
-    const remainingSeconds =
-        Math.floor(
-            seconds % 60
-        );
-
-
-    return `${minutes}:${remainingSeconds
-        .toString()
-        .padStart(2, "0")}`;
-
-}
-
-
-/* =========================================================
-   MOBILE SIDEBAR
-========================================================= */
-
-mobileMenu.addEventListener(
-    "click",
-    () => {
-
-        sidebar.classList.add(
-            "open"
-        );
-
-        mobileOverlay.classList.add(
-            "show"
-        );
-
-    }
-);
-
-
-mobileOverlay.addEventListener(
-    "click",
-    closeMobileMenu
-);
-
-
-function closeMobileMenu() {
-
-    sidebar.classList.remove(
-        "open"
-    );
-
-    mobileOverlay.classList.remove(
-        "show"
-    );
-
-}
-
-
-/* =========================================================
-   NAVIGATION
-========================================================= */
-
-/* =========================================================
-   NAVIGATION / PLAYLIST VIEWS
-========================================================= */
-
-const navItems =
-    document.querySelectorAll(".nav-item");
-
-
-navItems.forEach((button, index) => {
-
-    button.addEventListener(
+    fullscreenButton.addEventListener(
         "click",
         () => {
 
-            navItems.forEach(item => {
-
-                item.classList.remove(
-                    "active"
-                );
-
-            });
-
-
-            button.classList.add(
-                "active"
-            );
-
-
-            /* HOME */
-
-            if (index === 0) {
-
-                renderPlaylist(
-                    songs
-                );
-
-                songCount.textContent =
-                    `${songs.length} songs`;
-
-            }
-
-
-            /* PLAYLIST */
-
-            else if (index === 1) {
-
-                renderPlaylist(
-                    songs
-                );
-
-                songCount.textContent =
-                    `${songs.length} songs`;
-
-            }
-
-
-            /* FAVORITES */
-
-            else if (index === 2) {
-
-                showFavorites();
-
-            }
-
-
             if (
-                window.innerWidth <= 900
+                !document.fullscreenElement
             ) {
 
-                closeMobileMenu();
+                document.documentElement
+                    .requestFullscreen()
+                    .catch(
+                        () => {
+
+                            showMessage(
+                                "Fullscreen not available"
+                            );
+
+                        }
+                    );
+
+            } else {
+
+                document.exitFullscreen();
 
             }
 
         }
     );
 
-});
-/* =========================================================
-   SHOW FAVORITES
-========================================================= */
 
-function showFavorites() {
+    document.addEventListener(
+        "fullscreenchange",
+        () => {
 
-    const favoriteSongs =
-        favorites.map(
-            index => songs[index]
-        );
+            const icon =
+                fullscreenButton.querySelector(
+                    "i"
+                );
 
+            if (!icon) {
+                return;
+            }
 
-    if (
-        favoriteSongs.length === 0
-    ) {
+            icon.className =
+                document.fullscreenElement
+                    ? "fa-solid fa-compress"
+                    : "fa-solid fa-expand";
 
-        playlist.innerHTML = `
-
-            <div class="empty-favorites">
-
-                <div class="empty-icon">
-                    <i class="fa-regular fa-heart"></i>
-                </div>
-
-                <h3>
-                    No Favorite Songs
-                </h3>
-
-                <p>
-                    Tap the heart icon to add
-                    songs to your favorites.
-                </p>
-
-            </div>
-
-        `;
-
-        songCount.textContent =
-            "0 songs";
-
-        return;
-
-    }
-
-
-    renderPlaylist(
-        favoriteSongs
+        }
     );
-
-    songCount.textContent =
-        `${favoriteSongs.length} favorite ${
-            favoriteSongs.length === 1
-                ? "song"
-                : "songs"
-        }`;
 
 }
 
+
 /* =========================================================
-   ERROR HANDLING
+   AUDIO ERROR
 ========================================================= */
 
 audio.addEventListener(
@@ -1279,15 +2730,23 @@ audio.addEventListener(
     () => {
 
         console.error(
-            "Could not load:",
-            songs[currentIndex].file
+            "Could not load audio:",
+            songs[currentIndex]?.file
         );
+
+        isPlaying = false;
+
+        stopAnimation();
+
+        stopAudioWave();
+
+        updatePlayButton();
 
         showMessage(
-            `Audio file nahi mil rahi: ${songs[currentIndex].title}`
+            `Audio file nahi mil rahi: ${
+                songs[currentIndex]?.title || "Unknown"
+            }`
         );
-
-        pauseSong();
 
     }
 );
@@ -1297,9 +2756,12 @@ audio.addEventListener(
    TOAST MESSAGE
 ========================================================= */
 
-let toastTimer;
+let toastTimer = null;
 
-function showMessage(message) {
+
+function showMessage(
+    message
+) {
 
     let toast =
         document.getElementById(
@@ -1313,7 +2775,8 @@ function showMessage(message) {
                 "div"
             );
 
-        toast.id = "toast";
+        toast.id =
+            "toast";
 
         toast.style.position =
             "fixed";
@@ -1328,7 +2791,7 @@ function showMessage(message) {
             "translateX(-50%)";
 
         toast.style.zIndex =
-            "9999";
+            "99999";
 
         toast.style.padding =
             "11px 18px";
@@ -1348,12 +2811,20 @@ function showMessage(message) {
         toast.style.fontSize =
             "11px";
 
+        toast.style.fontFamily =
+            "Inter, sans-serif";
+
+        toast.style.pointerEvents =
+            "none";
+
+        toast.style.transition =
+            "opacity .3s ease";
+
         document.body.appendChild(
             toast
         );
 
     }
-
 
     toast.textContent =
         message;
@@ -1361,11 +2832,9 @@ function showMessage(message) {
     toast.style.opacity =
         "1";
 
-
     clearTimeout(
         toastTimer
     );
-
 
     toastTimer =
         setTimeout(
@@ -1382,22 +2851,98 @@ function showMessage(message) {
 
 
 /* =========================================================
+   ESCAPE HTML
+========================================================= */
+
+function escapeHTML(
+    value
+) {
+
+    return String(
+        value
+    )
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+
+}
+
+
+/* =========================================================
    BUTTON EVENTS
 ========================================================= */
 
-playButton.addEventListener(
-    "click",
-    togglePlay
-);
+if (playButton) {
+
+    playButton.addEventListener(
+        "click",
+        togglePlay
+    );
+
+}
+
+if (nextButton) {
+
+    nextButton.addEventListener(
+        "click",
+        nextSong
+    );
+
+}
+
+if (previousButton) {
+
+    previousButton.addEventListener(
+        "click",
+        previousSong
+    );
+
+}
 
 
-nextButton.addEventListener(
-    "click",
-    nextSong
-);
+/* =========================================================
+   INITIALIZE PLAYER
+========================================================= */
+
+initializePlayer();
 
 
-previousButton.addEventListener(
-    "click",
-    previousSong
+/* =========================================================
+   INITIAL NAV INDICATOR
+========================================================= */
+
+requestAnimationFrame(
+    () => {
+
+        const activeNav =
+            document.querySelector(
+                ".nav-item.active"
+            );
+
+        if (activeNav) {
+
+            moveNavIndicator(
+                activeNav
+            );
+
+        }
+
+    }
 );
