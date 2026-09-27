@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Pacifico&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Pacifico&family=Playfair+Display:ital,wght@0,600;1,600&display=swap"
         rel="stylesheet">
 
     <link
@@ -23,10 +23,44 @@
 
 <body>
 
-    <!-- Background -->
+    <!-- Cinematic Background -->
     <div class="background"></div>
+    <div class="aurora"></div>
     <div class="background-overlay"></div>
     <div class="stars"></div>
+    <div class="grain"></div>
+
+    <!-- Cinematic waveform that flows across the whole background -->
+    <div class="wave-field" aria-hidden="true">
+
+        <div class="wave-track wave-track-1">
+            <svg viewBox="0 0 1600 220" preserveAspectRatio="none">
+                <path class="wave" d="M0,120 C 200,50 400,190 600,120 C 800,50 1000,190 1200,120 C 1350,75 1500,165 1600,120 L1600,220 L0,220 Z" />
+            </svg>
+            <svg viewBox="0 0 1600 220" preserveAspectRatio="none">
+                <path class="wave" d="M0,120 C 200,50 400,190 600,120 C 800,50 1000,190 1200,120 C 1350,75 1500,165 1600,120 L1600,220 L0,220 Z" />
+            </svg>
+        </div>
+
+        <div class="wave-track wave-track-2">
+            <svg viewBox="0 0 1600 260" preserveAspectRatio="none">
+                <path class="wave wave-2" d="M0,140 C 220,210 420,70 640,140 C 860,210 1060,70 1280,140 C 1400,175 1500,115 1600,140 L1600,260 L0,260 Z" />
+            </svg>
+            <svg viewBox="0 0 1600 260" preserveAspectRatio="none">
+                <path class="wave wave-2" d="M0,140 C 220,210 420,70 640,140 C 860,210 1060,70 1280,140 C 1400,175 1500,115 1600,140 L1600,260 L0,260 Z" />
+            </svg>
+        </div>
+
+        <div class="wave-track wave-track-3">
+            <svg viewBox="0 0 1600 300" preserveAspectRatio="none">
+                <path class="wave wave-3" d="M0,160 C 240,100 460,220 680,160 C 900,100 1120,220 1340,160 C 1440,135 1520,180 1600,160 L1600,300 L0,300 Z" />
+            </svg>
+            <svg viewBox="0 0 1600 300" preserveAspectRatio="none">
+                <path class="wave wave-3" d="M0,160 C 240,100 460,220 680,160 C 900,100 1120,220 1340,160 C 1440,135 1520,180 1600,160 L1600,300 L0,300 Z" />
+            </svg>
+        </div>
+
+    </div>
 
     <!-- Mobile overlay -->
     <div class="mobile-overlay" id="mobileOverlay"></div>
@@ -57,6 +91,8 @@
 
             <nav class="navigation">
 
+                <div class="nav-indicator" id="navIndicator"></div>
+
                 <button class="nav-item active">
                     <i class="fa-solid fa-house"></i>
                     <span>Home</span>
@@ -86,13 +122,14 @@
                     <span>Better Mood."</span>
                 </p>
 
-                <div class="mini-wave">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <span></span>
+                <div class="mood-status">
+                    <span class="status-dot"></span>
+                    <span>LIVE AUDIO</span>
+                </div>
+
+                <div class="mini-wave" aria-hidden="true">
+                    <span></span><span></span><span></span><span></span><span></span><span></span>
+                    <span></span><span></span><span></span><span></span><span></span><span></span>
                 </div>
 
             </div>
@@ -173,12 +210,56 @@
 
                         <div class="album-glow"></div>
 
-                        <div class="vinyl" id="record">
-
-                            <div class="vinyl-center">
-                                <i class="fa-solid fa-music"></i>
-                            </div>
-
+                        <!-- Flowing equalizer waveform, always BEHIND the album art -->
+                        <div class="album-wave" id="record" aria-hidden="true">
+                            <span style="--i:0;--h:18"></span>
+                            <span style="--i:1;--h:28"></span>
+                            <span style="--i:2;--h:42"></span>
+                            <span style="--i:3;--h:58"></span>
+                            <span style="--i:4;--h:76"></span>
+                            <span style="--i:5;--h:94"></span>
+                            <span style="--i:6;--h:112"></span>
+                            <span style="--i:7;--h:86"></span>
+                            <span style="--i:8;--h:64"></span>
+                            <span style="--i:9;--h:48"></span>
+                            <span style="--i:10;--h:78"></span>
+                            <span style="--i:11;--h:106"></span>
+                            <span style="--i:12;--h:126"></span>
+                            <span style="--i:13;--h:96"></span>
+                            <span style="--i:14;--h:70"></span>
+                            <span style="--i:15;--h:54"></span>
+                            <span style="--i:16;--h:88"></span>
+                            <span style="--i:17;--h:118"></span>
+                            <span style="--i:18;--h:138"></span>
+                            <span style="--i:19;--h:104"></span>
+                            <span style="--i:20;--h:76"></span>
+                            <span style="--i:21;--h:58"></span>
+                            <span style="--i:22;--h:82"></span>
+                            <span style="--i:23;--h:110"></span>
+                            <span style="--i:24;--h:132"></span>
+                            <span style="--i:25;--h:98"></span>
+                            <span style="--i:26;--h:72"></span>
+                            <span style="--i:27;--h:52"></span>
+                            <span style="--i:28;--h:80"></span>
+                            <span style="--i:29;--h:114"></span>
+                            <span style="--i:30;--h:136"></span>
+                            <span style="--i:31;--h:102"></span>
+                            <span style="--i:32;--h:74"></span>
+                            <span style="--i:33;--h:56"></span>
+                            <span style="--i:34;--h:86"></span>
+                            <span style="--i:35;--h:120"></span>
+                            <span style="--i:36;--h:140"></span>
+                            <span style="--i:37;--h:108"></span>
+                            <span style="--i:38;--h:78"></span>
+                            <span style="--i:39;--h:58"></span>
+                            <span style="--i:40;--h:82"></span>
+                            <span style="--i:41;--h:112"></span>
+                            <span style="--i:42;--h:132"></span>
+                            <span style="--i:43;--h:96"></span>
+                            <span style="--i:44;--h:68"></span>
+                            <span style="--i:45;--h:48"></span>
+                            <span style="--i:46;--h:30"></span>
+                            <span style="--i:47;--h:20"></span>
                         </div>
 
                         <div class="album-art" id="albumArt">
@@ -187,6 +268,8 @@
                                 id="albumImage"
                                 src="images/aarzu.jpg"
                                 alt="Album artwork">
+
+                            <div class="album-sheen"></div>
 
                         </div>
 
@@ -200,6 +283,7 @@
                         <div class="song-header">
 
                             <div>
+                                <span class="now-tag"><i class="fa-solid fa-wave-square"></i> Now Playing</span>
                                 <h1 id="songTitle">Aarzu</h1>
                                 <p id="artistName">Asim Azhar</p>
                             </div>
@@ -324,7 +408,8 @@
                     <div class="playlist-header">
 
                         <div>
-                            <h2>Playlist</h2>
+                            <span class="playlist-eyebrow">Your Music</span>
+                            <h2><i class="fa-solid fa-house" id="playlistIcon"></i> <span id="playlistTitleText">Home</span></h2>
                             <p id="songCount">11 songs</p>
                         </div>
 
@@ -359,49 +444,78 @@
 
             <section class="bottom-player">
 
-                <div class="volume-area">
+                <!-- Now playing: thumbnail, title/artist, favorite -->
+                <div class="now-playing">
 
-                    <button id="volumeButton">
+                    <div class="now-art">
+                        <img id="bottomAlbumImage" src="images/aarzu.jpg" alt="Now playing artwork">
+                    </div>
 
-                        <i class="fa-solid fa-volume-high"></i>
+                    <div class="now-copy">
+                        <small>NOW PLAYING</small>
+                        <strong id="bottomSong">Aarzu</strong>
+                        <span id="bottomArtist">Asim Azhar</span>
+                    </div>
+
+                    <button
+                        class="mini-favorite"
+                        id="bottomFavoriteButton"
+                        title="Favorite">
+
+                        <i class="fa-regular fa-heart"></i>
 
                     </button>
 
+                </div>
+
+
+                <!-- Progress: stays synced with the main player -->
+                <div class="bottom-progress">
+
+                    <span id="bottomCurrentTime">0:00</span>
+
                     <input
                         type="range"
-                        id="volumeBar"
+                        id="bottomProgressBar"
                         min="0"
                         max="100"
-                        value="80">
+                        value="0">
 
-                    <span id="volumeValue">80%</span>
-
-                </div>
-
-
-                <div class="quote">
-
-                    <span>“</span>
-
-                    <p>
-                        Some songs heal what words cannot.
-                    </p>
-
-                    <span>”</span>
+                    <span id="bottomDuration">0:00</span>
 
                 </div>
 
 
-                <div class="now-playing">
+                <!-- Volume + fullscreen -->
+                <div class="bottom-right">
 
-                    <div class="now-icon">
-                        <i class="fa-solid fa-wave-square"></i>
+                    <div class="volume-area">
+
+                        <button id="volumeButton">
+
+                            <i class="fa-solid fa-volume-high"></i>
+
+                        </button>
+
+                        <input
+                            type="range"
+                            id="volumeBar"
+                            min="0"
+                            max="100"
+                            value="80">
+
+                        <span id="volumeValue">80%</span>
+
                     </div>
 
-                    <div>
-                        <small>NOW PLAYING</small>
-                        <strong id="bottomSong">Aarzu</strong>
-                    </div>
+                    <button
+                        class="fullscreen-button"
+                        id="fullscreenButton"
+                        title="Fullscreen">
+
+                        <i class="fa-solid fa-expand"></i>
+
+                    </button>
 
                 </div>
 
